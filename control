@@ -1,0 +1,10 @@
+Name: BlurryBar
+Package: org.thebigboss.blurrybar
+Author: PoomSmart
+Maintainer: BigBoss <bigboss@thebigboss.org>
+Conflicts: com.insanj.blurbar
+Depends: firmware (>= 7.0), mobilesubstrate
+Section: Tweaks
+Version: 1.0
+Architecture: iphoneos-arm
+Description: Fast native blur effect for SB status bar.
