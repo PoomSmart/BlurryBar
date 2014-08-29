@@ -9,7 +9,31 @@
 - (void)setStyle:(int)style;
 @end
 
-@interface NSDistributedNotificationCenter : NSNotificationCenter
+@interface SpringBoard
+- (id)_accessibilityFrontMostApplication;
+@end
+
+@interface UIStatusBarBackgroundView : UIView
+@end
+
+@interface UIStatusBar : UIView
+- (UIStatusBarBackgroundView *)_backgroundView;
+@end
+
+@interface UIApplication (Addition)
+- (UIStatusBar *)statusBar;
+@end
+
+@interface SBLockScreenManager {
+	BOOL _isUILocked;
+}
++ (SBLockScreenManager *)sharedInstanceIfExists;
+@end
+
+@interface SBLockStateAggregator : NSObject
++ (id)sharedInstance;
+- (BOOL)hasAnyLockState;
+- (unsigned)lockState;
 @end
 
 static NSArray* _stylesFor70 = @[@9,
@@ -41,37 +65,61 @@ static void loadSettings()
 		_styleIndex = 2;
 }
 
-%hook UIStatusBarBackgroundView
+static SBWallpaperEffectView *blurBar = nil;
 
-- (id)initWithFrame:(CGRect)frame style:(id)style backgroundColor:(UIColor *)color
+static void updateBlurStyle()
 {
-	self = %orig;
-	if (self) {
-		SBWallpaperEffectView *blurView = [[%c(SBWallpaperEffectView) alloc] initWithWallpaperVariant:1];
-		blurView.frame = frame;
-		blurView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-		loadSettings();
-		[blurView setStyle:tweakEnabled ? (isiOS70 ? STYLEFOR70 : STYLEFOR71) : 0];
-		[self addSubview:blurView];
-		[blurView release];
-		[[NSDistributedNotificationCenter defaultCenter] addObserver:self selector:@selector(updateBlurStyle) name:@"com.ps.blurrybar.update" object:nil];
-	}
-	return self;
+	if (blurBar == nil)
+		return;
+	[blurBar setStyle:tweakEnabled ? (isiOS70 ? STYLEFOR70 : STYLEFOR71) : 0];
 }
 
-- (void)dealloc
+static void showBar(BOOL show)
 {
-	[[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
+	if (blurBar != nil)
+		blurBar.hidden = !show;
+}
+
+%hook SBLockScreenManager
+
+- (void)lockUIFromSource:(int)source withOptions:(id)options
+{
 	%orig;
+	showBar(NO);
 }
 
-%new
-- (void)updateBlurStyle
-{
+- (void)_finishUIUnlockFromSource:(int)source withOptions:(id)options
+{ 
+	%orig;
 	loadSettings();
-	for (id view in [self subviews]) {
-		if ([NSStringFromClass([view class]) isEqualToString:@"SBWallpaperEffectView"])
-			[((SBWallpaperEffectView *)view) setStyle:tweakEnabled ? (isiOS70 ? STYLEFOR70 : STYLEFOR71) : 0];
+	showBar(YES);
+}
+
+%end
+
+%hook UIStatusBar
+
+- (void)layoutSubviews
+{
+	%orig;
+	BOOL isUnlocked = [[%c(SBLockStateAggregator) sharedInstance] lockState] == 0;
+	if (isUnlocked) {
+		if ([[UIApplication sharedApplication] respondsToSelector:@selector(_accessibilityFrontMostApplication)]) {
+			BOOL isAtSpringBoard = [(SpringBoard *)[UIApplication sharedApplication] _accessibilityFrontMostApplication] == nil;
+			if (isAtSpringBoard) {
+				UIStatusBarBackgroundView *backgroundView = (UIStatusBarBackgroundView *)[UIApplication sharedApplication].statusBar._backgroundView;
+				if (objc_getClass("SBWallpaperEffectView") != nil) {
+					if (blurBar == nil)
+						blurBar = [[%c(SBWallpaperEffectView) alloc] initWithWallpaperVariant:1];
+					blurBar.frame = [UIApplication sharedApplication].statusBar.frame;
+					blurBar.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+					loadSettings();
+					[blurBar setStyle:tweakEnabled ? (isiOS70 ? STYLEFOR70 : STYLEFOR71) : 0];
+					[backgroundView addSubview:blurBar];
+					updateBlurStyle();
+				}
+			}
+		}
 	}
 }
 
@@ -80,7 +128,7 @@ static void loadSettings()
 static void update(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo)
 {
 	loadSettings();
-	[[NSDistributedNotificationCenter defaultCenter] postNotificationName:@"com.ps.blurrybar.update" object:nil];
+	updateBlurStyle();
 }
 
 %hook SpringBoard
