@@ -74,10 +74,11 @@ static void updateBlurStyle()
 	[blurBar setStyle:tweakEnabled ? (isiOS70 ? STYLEFOR70 : STYLEFOR71) : 0];
 }
 
-static void showBar(BOOL show)
+static void updateSource()
 {
-	if (blurBar != nil)
-		blurBar.hidden = !show;
+	if (blurBar != nil) {
+		[blurBar wallpaperDidChangeForVariant:[[%c(SBWallpaperController) sharedInstance] variant]];
+	}
 }
 
 %hook SBLockScreenManager
@@ -85,14 +86,14 @@ static void showBar(BOOL show)
 - (void)lockUIFromSource:(int)source withOptions:(id)options
 {
 	%orig;
-	showBar(NO);
+	updateSource();
 }
 
 - (void)_finishUIUnlockFromSource:(int)source withOptions:(id)options
 { 
 	%orig;
 	loadSettings();
-	showBar(YES);
+	updateSource();
 }
 
 %end
@@ -102,8 +103,8 @@ static void showBar(BOOL show)
 - (void)layoutSubviews
 {
 	%orig;
-	BOOL isUnlocked = [[%c(SBLockStateAggregator) sharedInstance] lockState] == 0;
-	if (isUnlocked) {
+	//BOOL isUnlocked = [[%c(SBLockStateAggregator) sharedInstance] lockState] == 0;
+	//if (isUnlocked) {
 		if ([[UIApplication sharedApplication] respondsToSelector:@selector(_accessibilityFrontMostApplication)]) {
 			BOOL isAtSpringBoard = [(SpringBoard *)[UIApplication sharedApplication] _accessibilityFrontMostApplication] == nil;
 			if (isAtSpringBoard) {
@@ -120,7 +121,7 @@ static void showBar(BOOL show)
 				}
 			}
 		}
-	}
+	//}
 }
 
 %end
