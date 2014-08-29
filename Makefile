@@ -5,6 +5,7 @@ ARCHS = armv7 arm64
 include theos/makefiles/common.mk
 TWEAK_NAME = BlurryBar
 BlurryBar_FILES = Tweak.xm
+BlurryBar_FRAMEWORKS = UIKit
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
