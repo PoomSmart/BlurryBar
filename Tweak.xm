@@ -6,6 +6,7 @@
 
 @interface SBWallpaperEffectView : UIView
 - (id)initWithWallpaperVariant:(int)variant;
+- (void)wallpaperDidChangeForVariant:(int)variant;
 - (void)setStyle:(int)style;
 @end
 
@@ -76,9 +77,8 @@ static void updateBlurStyle()
 
 static void updateSource()
 {
-	if (blurBar != nil) {
-		[blurBar wallpaperDidChangeForVariant:[[%c(SBWallpaperController) sharedInstance] variant]];
-	}
+	if (blurBar != nil)
+		[blurBar wallpaperDidChangeForVariant:1];
 }
 
 %hook SBLockScreenManager
@@ -103,25 +103,18 @@ static void updateSource()
 - (void)layoutSubviews
 {
 	%orig;
-	//BOOL isUnlocked = [[%c(SBLockStateAggregator) sharedInstance] lockState] == 0;
-	//if (isUnlocked) {
-		if ([[UIApplication sharedApplication] respondsToSelector:@selector(_accessibilityFrontMostApplication)]) {
-			BOOL isAtSpringBoard = [(SpringBoard *)[UIApplication sharedApplication] _accessibilityFrontMostApplication] == nil;
-			if (isAtSpringBoard) {
-				UIStatusBarBackgroundView *backgroundView = (UIStatusBarBackgroundView *)[UIApplication sharedApplication].statusBar._backgroundView;
-				if (objc_getClass("SBWallpaperEffectView") != nil) {
-					if (blurBar == nil)
-						blurBar = [[%c(SBWallpaperEffectView) alloc] initWithWallpaperVariant:1];
-					blurBar.frame = [UIApplication sharedApplication].statusBar.frame;
-					blurBar.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-					loadSettings();
-					[blurBar setStyle:tweakEnabled ? (isiOS70 ? STYLEFOR70 : STYLEFOR71) : 0];
-					[backgroundView addSubview:blurBar];
-					updateBlurStyle();
-				}
-			}
-		}
-	//}
+	//BOOL isUnlocked = [[%c(SBLockStateAggregator) sharedInstance] lockState] == 0
+	UIStatusBarBackgroundView *backgroundView = (UIStatusBarBackgroundView *)[UIApplication sharedApplication].statusBar._backgroundView;
+	if (objc_getClass("SBWallpaperEffectView") != nil) {
+		if (blurBar == nil)
+			blurBar = [[%c(SBWallpaperEffectView) alloc] initWithWallpaperVariant:1];
+		blurBar.frame = [UIApplication sharedApplication].statusBar.frame;
+		blurBar.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+		loadSettings();
+		[blurBar setStyle:tweakEnabled ? (isiOS70 ? STYLEFOR70 : STYLEFOR71) : 0];
+		[backgroundView insertSubview:blurBar atIndex:[[backgroundView subviews] count]];
+		updateBlurStyle();
+	}
 }
 
 %end
